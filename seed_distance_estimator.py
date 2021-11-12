@@ -205,8 +205,10 @@ class SeedSpacingCalculator:
         for camera in range(4):
             distances[camera] = distance_struct(self.seeked)
         print(self.frame_idx - self.seeked)
+
         while (self.frame_idx - self.seeked < max_count):
             ret, frame = self.cap.read()
+
             if (not ret):
                 print("Loop Broken Before Reaching The End Point")
                 break
