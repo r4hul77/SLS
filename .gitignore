@@ -1,4 +1,4 @@
-CNNModels
+TrainedWeights/*
 GpsData/.ipynb_checkpoints
 GpsData/*.csv
 Object Detection Models/*

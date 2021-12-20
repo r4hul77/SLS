@@ -1,3 +1,4 @@
+import logging
 import os.path
 import time
 import numpy
@@ -13,8 +14,12 @@ from SeedDetectors.RetinanetSeedDetector import *
 from Filters.seed_filter import *
 
 
-logging.basicConfig(filename="AnalysisLog.log", level=logging.DEBUG, filemode="w")
-
+logging.basicConfig(filename="AnalysisLog.log", format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s', level=logging.DEBUG, filemode="w")
+console = logging.StreamHandler()
+console.setLevel(logging.WARNING)
+formatter = logging.Formatter('%(message)s')
+console.setFormatter(formatter)
+logging.getLogger().addHandler(console)
 camera_calib = CameraCalibration("/home/harsha/Desktop/SLS-CNH/Data/exp3/Camera_20_calib.json", h=300, w=480)
 
 def prob_plot(plt, start_frame, probs, label, ax):
