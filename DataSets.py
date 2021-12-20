@@ -19,6 +19,7 @@ class WestMorelandDataSet:
         self.new_opt_mtx = None
         self.roi         = None
         self.end_frame = None
+        self.start_frame = 0
         if(not self.video_capture.isOpened()):
             raise ValueError
         # TODO Write a check for if we are using the correct file
@@ -41,6 +42,7 @@ class WestMorelandDataSet:
         else:
             self.video_capture.set(cv.CAP_PROP_POS_FRAMES, frame_no)
             self.frame_idx = frame_no
+            self.start_frame = frame_no
 
     def seek_percent(self, percent):
 
@@ -114,6 +116,8 @@ class WestMorelandDataSet:
 
         return int(self.video_capture.get(cv.CAP_PROP_FRAME_COUNT))
 
+    def get_total_frames(self):
+        return self.end_frame - self.start_frame
 
     def __iter__(self):
 
