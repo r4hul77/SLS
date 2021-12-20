@@ -162,10 +162,10 @@ class SeedSpacingCalculator:
 
         vel_now = 0.277778 * self.csv_file['Amplitude - Vel'][self.frame_idx]
 
-        if self.frame_idx + 4 >= len(self.csv_file):
+        if self.frame_idx + 8 >= len(self.csv_file):
             return 0
 
-        vel_next = 0.277778 * self.csv_file['Amplitude - Vel'][self.frame_idx + 4]
+        vel_next = 0.277778 * self.csv_file['Amplitude - Vel'][self.frame_idx + 8]
 
         return (vel_next - vel_now) / 0.1
 
