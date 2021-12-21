@@ -1,17 +1,32 @@
+import numpy as np
 import pandas as pd
 from statistics import mean, stdev
 from SeedDistanceEstimator import *
 import torch
 import logging
 import matplotlib.pyplot as plt
+from scipy.spatial.distance import jensenshannon
+
+def print_jsd(x, y, bins=10, exp=""):
+    c_x, b_x = np.histogram(x, bins=bins)
+    p_x = c_x/np.sum(c_x)
+    c_y, b_y = np.histogram(y, bins=b_x)
+    p_y = c_y/np.sum(c_y)
+    jsd = jensenshannon(p_x, p_y)
+    logging.warning(exp+"Jensen Shannon Distance with nbins {} is {}".format(bins, jsd))
 
 
 def validate(seeds_preds, validation_Data_csv_path, total_dist=50*0.3048):
 
     validation_data = pd.read_csv(validation_Data_csv_path).to_numpy()
     validation_data = validation_data[:, 0]*0.3048 + validation_data[:, 1]*0.3048
+    distances_pred = [seed.distance for seed in seeds_preds]
+
 
     distances = np.diff(validation_data)
+
+    print_jsd(distances_pred, distances, exp="Pred = x")
+    print_jsd(distances, distances_pred, exp="Valid = x")
 
     np.insert(distances, 0, 0, 0)
 
@@ -71,7 +86,8 @@ def validate(seeds_preds, validation_Data_csv_path, total_dist=50*0.3048):
     l2_error = np.sqrt(l2_error)
 
     pred_distances = [seed.distance for seed in seeds_filtered]
-
+    print_jsd(distances, pred_distances, exp="Filtered valid = x")
+    print_jsd(pred_distances, distances, exp="Filterd pred = x")
 
     '''Plots'''
 
@@ -90,8 +106,10 @@ def validate(seeds_preds, validation_Data_csv_path, total_dist=50*0.3048):
     counts, bins = np.histogram(distances, bins=30)
     ax[1].hist(bins[:-1], bins=bins, weights=counts, label="validation data")
     ax[1].set_title("Histogram of Distances in Validation and Prediction")
-    counts, bins = np.histogram(pred_distances, bins=bins)
-    ax[1].hist(bins[:-1], bins, weights=counts, alpha=0.3, label="predicted distances")
+    counts_pred, bins = np.histogram(pred_distances, bins=bins)
+    ax[1].hist(bins[:-1], bins, weights=counts_pred, alpha=0.3, label="predicted distances")
+
+
     ax[1].set_xlabel("Distances(m)")
     ax[1].set_ylabel("Number(N)")
     plt.legend()
@@ -112,7 +130,7 @@ def validate(seeds_preds, validation_Data_csv_path, total_dist=50*0.3048):
     logging.warning("Mean of Predicted {} Vs Mean of Data {}".format(torch.mean(torch.tensor(pred_distances)), mean(distances)))
     logging.warning("Std of Predicted {} vs Std of Data {}".format(torch.std(torch.tensor(pred_distances)), stdev(distances)))
 
-    ax[4].plot("Seeds at a distance from the start of the count")
+    ax[4].set_title("Seeds at a distance from the start of the count")
     logging.debug("Idxs : {}".format(idxs))
     ax[4].scatter(total_distances[:idxs], [0]*idxs, label="Predicted")
     ax[4].scatter(validation_data[:idxs], [0]*idxs, alpha=0.3, label="Validation Data")
