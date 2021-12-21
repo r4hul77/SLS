@@ -7,7 +7,7 @@ import logging
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import jensenshannon
 
-def print_jsd(x, y, bins=10, exp=""):
+def print_jsd(x, y, bins=30, exp=""):
     c_x, b_x = np.histogram(x, bins=bins)
     p_x = c_x/np.sum(c_x)
     c_y, b_y = np.histogram(y, bins=b_x)

@@ -12,6 +12,8 @@ from undistort import CameraCalibration
 from utils.validate import validate
 from SeedDetectors.RetinanetSeedDetector import *
 from Filters.seed_filter import *
+import scipy.stats as st
+
 
 
 logging.basicConfig(filename="AnalysisLog.log", format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s', level=logging.DEBUG, filemode="w")
@@ -49,7 +51,7 @@ def save_images(folder_name):
 
 if __name__ == "__main__":
 
-    folder = "/home/harsha/Desktop/SLS-CNH/Data/exp3/2-34"
+    folder = "/home/harsha/Desktop/SLS-CNH/Data/exp3/2-37"
     dataset = GoodFieldDataSet(folder=folder)
 
     file = "frame_info.txt"
