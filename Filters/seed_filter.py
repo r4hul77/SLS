@@ -3,35 +3,28 @@ import utm
 import logging
 
 from typing import List
-from utils.datatypes import *
+from utils_seed.datatypes import *
 from SeedDetectors.SeedDetectorBase import *
 
 class SeedFilter:
 
-    def __init__(self, seed_detector:SeedDetector, iou_threshold:float):
-        self.seed_detector = seed_detector
+    def __init__(self, iou_threshold:float):
         self.seed_queue : SeedList  = []
         self.iou_threshold = iou_threshold
 
-    def main(self, frame, lat, long, velocity, acceleration, dt, seed_prob_dim=None):
+    def main(self, detections, lat, long, velocity, acceleration, dt):
 
-
+        logging.debug("[Filter Main] Recived Detections {}".format(detections))
 
         self.update(lat, long, velocity, acceleration, dt)
 
         logging.debug("[Filter Main] qeue {}".format(self.seed_queue))
 
-        detectionsCam, max_prob = self.seed_detector.detect(frame, seed_prob_dim)
+        detections.sort(key=lambda x:x.x_c)
 
-        detectionsCam.sort(key=lambda x:x.x_c)
-
-        new_seeds = self.filter(detectionsCam, self.iou_threshold)
-
+        new_seeds = self.filter(detections, self.iou_threshold)
         for seed in new_seeds:
             self.seed_queue.append(seed)
-
-        if(seed_prob_dim):
-            return new_seeds, max_prob
 
         return new_seeds
 
