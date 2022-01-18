@@ -1,7 +1,7 @@
 import cv2
 import copy
 import numpy as np
-from utils.datatypes import *
+from utils_seed.datatypes import *
 import typing
 import logging
 

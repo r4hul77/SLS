@@ -136,3 +136,10 @@ def validate(seeds_preds, validation_Data_csv_path, total_dist=50*0.3048):
     ax[4].scatter(validation_data[:idxs], [0]*idxs, alpha=0.3, label="Validation Data")
     plt.legend()
     ax[4].set_xlabel("Distance(m)")
+
+def convert_to_dataframe(seed_dist_list):
+    seeds = [seed_dist.seed for seed_dist in seed_dist_list]
+    df = pd.DataFrame(seeds)
+    df1 = pd.DataFrame(seed_dist_list)
+    df1 = df1.drop('seed', axis=1)
+    return df.join(df1)
