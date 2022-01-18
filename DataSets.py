@@ -1,4 +1,5 @@
 import json
+import sys
 
 import cv2 as cv
 import numpy as np
@@ -140,8 +141,9 @@ class WestMorelandDataSet:
         if(self.end_frame):
             if(self.frame_idx > self.end_frame):
                 raise StopIteration
+        version_info = sys.version_info
 
-        return self.frame_idx, *frames, lat, long, vel, accel, heading
+        return (self.frame_idx, *frames, lat, long, vel, accel, heading)
 
 
 class GoodFieldDataSet(WestMorelandDataSet):

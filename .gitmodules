@@ -1,0 +1,6 @@
+[submodule "ObjectDetectionModels/detr"]
+	path = ObjectDetectionModels/detr
+	url = https://github.com/facebookresearch/detr.git
+[submodule "ObjectDetectionModels/DETR"]
+	path = ObjectDetectionModels/DETR
+	url = https://github.com/aivclab/detr.git
