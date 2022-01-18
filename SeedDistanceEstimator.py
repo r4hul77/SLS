@@ -1,12 +1,6 @@
-import copy
-import dataclasses
 
-import numpy as np
 import utm
-import logging
 
-from typing import List
-from utils.datatypes import *
 from SeedDetectors.SeedDetectorBase import *
 
 class SeedXDistanceEstimator:
