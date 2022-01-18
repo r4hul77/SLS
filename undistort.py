@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
     newOptMatrix, roi = cv.getOptimalNewCameraMatrix(cam_props["mtx"], cam_props["dist"], (w, h), 1, (w, h))
     dst = cv.undistort(img, cam_props["mtx"], cam_props["dist"], None, newOptMatrix)
-    # crop the image
+    #crop the image
     x, y, w, h = roi
     dst = dst[y:y + h, x:x + w]
     print(img.shape)
