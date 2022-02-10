@@ -1,7 +1,7 @@
 TrainedWeights/*
 GpsData/.ipynb_checkpoints
 GpsData/*.csv
-Object Detection Models/*
+ObjectDetectionModels/*
 .idea
 Data/*
 *.log
