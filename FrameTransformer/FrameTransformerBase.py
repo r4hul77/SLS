@@ -3,6 +3,9 @@ from utils_seed.datatypes import *
 import typing
 import copy
 
+#Sensor Size = 11.3 mm x 7.1 mm
+#Pixel Size = 5.86 µm x 5.86 µm
+
 class FrameTransformerBase:
 
     def __init__(self, values):

@@ -2,7 +2,7 @@ import cv2 as cv
 import numpy as np
 import json
 
-
+#pixelsize = 5.86 µm x 5.86 µm
 
 def load_cam_props(cam_file):
     with open(cam_file, "r") as f:
