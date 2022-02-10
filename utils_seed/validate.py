@@ -14,6 +14,7 @@ def print_jsd(x, y, bins=30, exp=""):
     p_y = c_y/np.sum(c_y)
     jsd = jensenshannon(p_x, p_y)
     logging.warning(exp+"Jensen Shannon Distance with nbins {} is {}".format(bins, jsd))
+    return jsd
 
 
 def validate(seeds_preds, validation_Data_csv_path, total_dist=50*0.3048):
@@ -25,8 +26,9 @@ def validate(seeds_preds, validation_Data_csv_path, total_dist=50*0.3048):
 
     distances = np.diff(validation_data)
 
-    print_jsd(distances_pred, distances, exp="Pred = x")
-    print_jsd(distances, distances_pred, exp="Valid = x")
+    ret = {}
+    ret['jsd1_total'] = print_jsd(distances_pred, distances, exp="Pred = x")
+    ret['jsd2_total'] = print_jsd(distances, distances_pred, exp="Valid = x")
 
     np.insert(distances, 0, 0, 0)
 
@@ -54,6 +56,8 @@ def validate(seeds_preds, validation_Data_csv_path, total_dist=50*0.3048):
             break
         prev_distance = distance
 
+    ret["seed_count_pred_50ft"] = len(seeds_filtered)
+    ret["seeed_count_valid_50ft"] = validation_data.shape[0]
     logging.warning("Total Seeds Predicted in {} m : {}".format(total_dist, len(seeds_filtered)))
     logging.warning("Total Seeds Counted in {} m : {}".format(total_dist, validation_data.shape[0]))
 
@@ -86,57 +90,63 @@ def validate(seeds_preds, validation_Data_csv_path, total_dist=50*0.3048):
     l2_error = np.sqrt(l2_error)
 
     pred_distances = [seed.distance for seed in seeds_filtered]
-    print_jsd(distances, pred_distances, exp="Filtered valid = x")
-    print_jsd(pred_distances, distances, exp="Filterd pred = x")
+    ret['jsd1_50_ft'] = print_jsd(distances, pred_distances, exp="Filtered valid = x")
+    ret['jsd2_50_ft'] = print_jsd(pred_distances, distances, exp="Filterd pred = x")
 
     '''Plots'''
 
-    fig, ax = plt.subplots(5, 1)
-    fig.tight_layout()
-    fig.canvas.manager.full_screen_toggle()
-    ax[0].set_title("Counts Validation Vs Distances Validation")
-    ax[0].scatter(range(len(distances)), distances, cmap='r', label="validation data")
-    ax[0].scatter(range(len(pred_distances)), pred_distances, marker='*', label="predicted data")
-    ax[0].set_xlabel("Counts (N)")
-    ax[0].set_ylabel("Distances (m)")
+    plt.figure()
+
+    plt.title("Counts Validation Vs Distances Validation")
+    plt.scatter(range(len(distances)), distances, cmap='r', label="validation data")
+    plt.scatter(range(len(pred_distances)), pred_distances, marker='*', label="predicted data")
+    plt.xlabel("Counts (N)")
+    plt.ylabel("Distances (m)")
     plt.legend()
 
     idxs = min(len(pred_distances), len(distances))
 
+    plt.figure()
     counts, bins = np.histogram(distances, bins=30)
-    ax[1].hist(bins[:-1], bins=bins, weights=counts, label="validation data")
-    ax[1].set_title("Histogram of Distances in Validation and Prediction")
+    plt.hist(bins[:-1], bins=bins, weights=counts, label="validation data")
+    plt.title("Histogram of Distances in Validation and Prediction")
     counts_pred, bins = np.histogram(pred_distances, bins=bins)
-    ax[1].hist(bins[:-1], bins, weights=counts_pred, alpha=0.3, label="predicted distances")
-
-
-    ax[1].set_xlabel("Distances(m)")
-    ax[1].set_ylabel("Number(N)")
+    plt.hist(bins[:-1], bins, weights=counts_pred, alpha=0.3, label="predicted distances")
+    plt.xlabel("Distances(m)")
+    plt.ylabel("Number(N)")
     plt.legend()
 
-    ax[2].set_title("Predicted Distance Vs Validation Distance")
-    ax[2].scatter(pred_distances[:idxs], distances[:idxs])
-    ax[2].set_xlabel("Predicted Distance(m)")
-    ax[2].set_ylabel("Validation Distance(m)")
+    plt.figure()
+    plt.title("Predicted Distance Vs Validation Distance")
+    plt.scatter(pred_distances[:idxs], distances[:idxs])
+    plt.xlabel("Predicted Distance(m)")
+    plt.ylabel("Validation Distance(m)")
 
-    ax[3].set_title("Predicted Distance Vs Validation Distance Abs Error")
-    ax[3].scatter(range(idxs), abs(pred_distances[:idxs]-distances[:idxs]))
-    ax[3].set_xlabel("Count(N)")
-    ax[3].set_ylabel("Abs Error (m)")
+    plt.title("Predicted Distance Vs Validation Distance Abs Error")
+    plt.scatter(range(idxs), abs(pred_distances[:idxs]-distances[:idxs]))
+    plt.xlabel("Count(N)")
+    plt.ylabel("Abs Error (m)")
 
     logging.warning("Total Residual Spacing Left {}".format(total))
     logging.warning("Avg L1 error {}".format(total/max_size))
     logging.warning("Avg L2 Error {}".format(l2_error/max_size))
+    ret["RMS"] = l2_error/max_size
     logging.warning("Mean of Predicted {} Vs Mean of Data {}".format(torch.mean(torch.tensor(pred_distances)), mean(distances)))
+    ret["Mean_Predicted"] = torch.mean(torch.tensor(pred_distances))
+    ret["Mean_Valid"] = mean(distances)
     logging.warning("Std of Predicted {} vs Std of Data {}".format(torch.std(torch.tensor(pred_distances)), stdev(distances)))
+    ret["stdev_predicted"] = torch.std(torch.tensor(pred_distances))
+    ret["stdev_valid"] = stdev(distances)
 
-    ax[4].set_title("Seeds at a distance from the start of the count")
+    plt.figure()
+    plt.title("Seeds at a distance from the start of the count")
     logging.debug("Idxs : {}".format(idxs))
-    ax[4].scatter(total_distances[:idxs], [0]*idxs, label="Predicted")
-    ax[4].scatter(validation_data[:idxs], [0]*idxs, alpha=0.3, label="Validation Data")
+    plt.scatter(total_distances[:idxs], [0]*idxs, label="Predicted")
+    plt.scatter(validation_data[:idxs], [0]*idxs, alpha=0.3, label="Validation Data")
     plt.legend()
-    ax[4].set_xlabel("Distance(m)")
+    plt.xlabel("Distance(m)")
 
+    return ret
 def convert_to_dataframe(seed_dist_list):
     seeds = [seed_dist.seed for seed_dist in seed_dist_list]
     df = pd.DataFrame(seeds)
