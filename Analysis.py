@@ -1,5 +1,7 @@
 import os
 import logging
+import torch
+from SeedDistanceEstimator import SeedXDistanceEstimator
 import os.path
 import time
 import numpy
@@ -11,14 +13,15 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from undistort import CameraCalibration
 from utils_seed.validate import validate
-from SeedDetectors.RetinanetSeedDetector import *
 from Filters.seed_filter import *
 from FrameTransformer.FrameTransformerBase import FrameTransformerBase
 from utils_seed.display import *
 from utils_seed.validate import convert_to_dataframe
+from FlowEstimator import *
 
-def prob_plot(plt, start_frame, probs, label, ax):
-    ax.plot(range(start_frame, len(probs)+start_frame), probs, label=label)
+
+def prob_plot(plt, start_frame, probs, label, ax=None):
+    plt.plot(range(start_frame, len(probs)+start_frame), probs, label=label)
 
 
 def save_multi_image(filename):
@@ -62,6 +65,8 @@ def analyse(exp, detector, results_path, camera_calib_path="/home/harsha/Desktop
 
     dataset = GoodFieldDataSet(folder=current_dataset_path)
 
+    flow_estimator = FlowEstimator(queue_size=3, debug=True)
+
     with open(os.path.join(current_dataset_path, frames_yaml), "r") as stream:
         frame_info = yaml.safe_load(stream)
 
@@ -91,8 +96,11 @@ def analyse(exp, detector, results_path, camera_calib_path="/home/harsha/Desktop
         undistorted = camera_calib.undistort(img_0)
 
         detections, seed_probs = detector.detect(input_img=undistorted, seed_prob_dim=3)
+
+        state, viz = flow_estimator.main(undistorted)
+
         logging.debug("[Main] Seed Probs {}".format(seed_probs))
-        viz = draw_bbox(undistorted, detections)
+        viz = draw_bbox(viz, detections)
         probs.append(seed_probs)
         detectionsCamSpace = list(map(lambda x: frame_transformer.convert(x, width=width, height=height), detections))
         logging.debug("[Main] SeedS CamSpace {}".format(detectionsCamSpace))
@@ -132,41 +140,46 @@ def analyse(exp, detector, results_path, camera_calib_path="/home/harsha/Desktop
 
     '''Plots For Vizualization'''
 
-    fig, ax = plt.subplots(5, 1)
-    fig.tight_layout()
-    fig.canvas.manager.resize(*fig.canvas.manager.window.maxsize())
-    #fig.canvas.manager.full_screen_toggle()
-    ax[0].set_title("Histogram of Seed Distances")
-    ax[0].set_ylabel("Number of Seeds(N)")
-    ax[0].set_xlabel("Distance(m)")
-    ax[0].hist(delta_dists, bins=75)
-
-    ax[1].scatter(frame_idxs, counts)
-    ax[1].set_title("Frame Indexs and Counts")
-    ax[1].set_xlabel("Frame IDXS(N)")
-    ax[1].set_ylabel("Counts(N)")
-
-    ax[2].set_title("Counts Vs Distances")
-    ax[2].scatter(counts, delta_dists, marker='+', norm=10)
-    ax[2].set_xlabel("Counts (N)")
-    ax[2].set_ylabel("Distances(m)")
-
-    ax[3].scatter(frame_idxs, delta_dists)
-    ax[3].set_title("Frame Indexes and Distances")
-    ax[3].set_xlabel("Frame IDXS(N)")
-    ax[3].set_ylabel("Distances (m)")
+    plt.figure()
+    plt.title("Histogram of Seed Distances")
+    plt.ylabel("Number of Seeds(N)")
+    plt.xlabel("Distance(m)")
+    plt.hist(delta_dists, bins=75)
 
 
-    ax[4].set_title("Seed Prob in Frame")
-    prob_plot(plt, start_frame=start_frame, probs=[prob[0] for prob in probs], label="0 Prob", ax=ax[4])
-    prob_plot(plt, start_frame=start_frame, probs=[prob[1] for prob in probs], label="1 Prob", ax=ax[4])
-    prob_plot(plt, start_frame=start_frame, probs=[prob[2] for prob in probs], label="2 Prob", ax=ax[4])
-    ax[4].set_xlabel("Frame No(N)")
-    ax[4].set_ylabel("Prob(0<=p<=1)")
+    plt.figure()
+    plt.scatter(frame_idxs, counts)
+    plt.title("Frame Indexs and Counts")
+    plt.xlabel("Frame IDXS(N)")
+    plt.ylabel("Counts(N)")
+
+    plt.figure()
+    plt.title("Counts Vs Distances")
+    plt.scatter(counts, delta_dists, marker='+', norm=10)
+    plt.xlabel("Counts (N)")
+    plt.ylabel("Distances(m)")
+
+    plt.figure()
+    plt.scatter(frame_idxs, delta_dists)
+    plt.title("Frame Indexes and Distances")
+    plt.xlabel("Frame IDXS(N)")
+    plt.ylabel("Distances (m)")
+
+
+    plt.figure()
+    plt.title("Seed Prob in Frame")
+    prob_plot(plt, start_frame=start_frame, probs=[prob[0] for prob in probs], label="0 Prob")
+    prob_plot(plt, start_frame=start_frame, probs=[prob[1] for prob in probs], label="1 Prob")
+    prob_plot(plt, start_frame=start_frame, probs=[prob[2] for prob in probs], label="2 Prob")
+    plt.xlabel("Frame No(N)")
+    plt.ylabel("Prob(0<=p<=1)")
     plt.legend()
 
-    validate(seeds_utm, os.path.join(current_dataset_path, "ValidationData.csv"), total_dist=50*0.3048)
+    ret_dict = validate(seeds_utm, os.path.join(current_dataset_path, "ValidationData.csv"), total_dist=50*0.3048)
 
+    with open(os.path.join(results_folder, "validation_results.csv"), 'w') as file:
+        for key in ret_dict.keys():
+            file.write("%s, %f\n" % (key, ret_dict[key]))
 
     save_multi_image(os.path.join(results_folder, "results.pdf"))
     save_images(os.path.join(results_folder, "Graphs"))
