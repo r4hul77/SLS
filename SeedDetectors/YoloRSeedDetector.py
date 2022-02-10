@@ -1,3 +1,7 @@
+import logging
+
+import torch
+
 import cv2
 import sys
 YOLOR_PATH = "/home/harsha/Desktop/SLS-CNH/ObjectDetectionModels/yolor"
@@ -8,6 +12,7 @@ from ObjectDetectionModels.yolor.utils.general import (
     check_img_size, non_max_suppression, apply_classifier, scale_coords, xyxy2xywh, strip_optimizer)
 from utils_seed.filehandling import *
 from ObjectDetectionModels.yolor.utils.datasets import letterbox
+torch.set_printoptions(profile="full")
 class YoloRSeedDector(SeedDetector):
 
     def __init__(self, cfg, img_size, weights, threshold, device = 0):
@@ -38,7 +43,10 @@ class YoloRSeedDector(SeedDetector):
         '''ISSUE WITH PADDING'''
         with torch.no_grad():
             outs = self.model(tensors, augment=False)[0]
-            ret = non_max_suppression(outs, self.threshold, 0.25, agnostic=True)
+            _, indices = torch.sort(outs[:, :, -2], descending=True)
+            logging.debug("[Top Outs] {}".format(outs[:, indices[:, :25], :]))
+            #logging.debug("[before NMS yolorDetector] preds : {}".format(outsP))
+            ret = non_max_suppression(outs, 0.5, 0.75, agnostic=True)
             logging.debug("[NMS yolorDetector] preds : {}".format(ret))
 
         return self.get_bboxs(preds=ret[0])

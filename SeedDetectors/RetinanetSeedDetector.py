@@ -6,8 +6,9 @@ from SeedDetectors.SeedDetectorBase import *
 class RetinaNetSeedDector(SeedDetector):
 
     def __init__(self, model_path, threshold, device = 0):
-        super(RetinaNetSeedDector, self).__init__(name="Retina_Net", threshold=threshold, model=torch.load(model_path))
+        super(RetinaNetSeedDector, self).__init__(name="Retina_Net", threshold=threshold, model=None)
         self.device = device
+        self.model = torch.load(model_path)
     def predict(self, input_img:np.array):
         tensors = [ torch.Tensor(input_img[:, :, ::-1] / 255).to(self.device).permute(2, 0, 1)]
         for tensor in tensors:
