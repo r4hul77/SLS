@@ -8,3 +8,4 @@ Data/*
 *.profile
 Results/*
 mAP/*
+*.pyc
