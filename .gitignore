@@ -6,3 +6,5 @@ ObjectDetectionModels/*
 Data/*
 *.log
 *.profile
+Results/*
+mAP/*
