@@ -1,0 +1,1 @@
+add sigulation: (total events - doubles -no seed)/total events

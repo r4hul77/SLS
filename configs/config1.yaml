@@ -1,0 +1,2 @@
+data_dir: "/home/harsha/Desktop/seedIdentification/SeedSpace2_ImagesSplitted/"
+cnn_model: "CNNModels/retina_fp_18_classified_allTrain2.pth"

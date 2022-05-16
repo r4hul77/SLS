@@ -38,7 +38,7 @@ class SeedFilter:
 
 
 
-            if(seed.w//2+seed.x_c > -0.1):
+            if(seed.w / 2+seed.x_c > -0.1):
                 new_list.append(seed)
 
             else:
@@ -116,4 +116,43 @@ class SeedFilter:
             new_seeds = detections
 
         return new_seeds
+
+class SeedFilterCenterBased(SeedFilter):
+
+    def __int__(self):
+        super(SeedFilter, self).__init__(0)
+
+    def filter(self, detections, iou_tres):
+        new_seeds = []
+        if(len(self.seed_queue) > 0):
+            seed_queue = self.seed_queue
+            seeds_to_be_added = []
+            for seed in detections:
+                reject = False
+                #if(seed.x_c < self.seed_queue[-1].x_c):
+                #    continue
+                for i, seed_q in enumerate(seed_queue):
+                    flag = self.center_match(seed_q, seed)
+                    logging.debug("[Flag] Flag : {}".format(flag))
+                    if(flag):
+                        reject = True
+                        seed_queue.remove(seed_q)
+                        seeds_to_be_added.append(seed)
+                        break
+                if(not reject):
+                    new_seeds.append(seed)
+
+            for seed in seeds_to_be_added:
+                seed_queue.append(seed)
+
+            self.seed_queue = seed_queue
+
+        else:
+            new_seeds = detections
+
+        return new_seeds
+
+    def center_match(self, seed, seed_q):
+        return ((((seed.x_c - seed.w / 2) < seed_q.x_c) and ((seed.x_c+seed.w / 2) > seed_q.x_c))) #and
+                #(((seed.y_c - seed.h / 2) < seed_q.y_c) and ((seed.y_c + seed.h / 2) > seed_q.y_c)))
 

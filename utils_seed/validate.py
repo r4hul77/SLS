@@ -17,11 +17,11 @@ def print_jsd(x, y, bins=30, exp=""):
     return jsd
 
 
-def validate(seeds_preds, validation_Data_csv_path, total_dist=50*0.3048):
+def validate(seeds_graph, validation_Data_csv_path, total_dist=50*0.3048):
 
     validation_data = pd.read_csv(validation_Data_csv_path).to_numpy()
     validation_data = validation_data[:, 0]*0.3048 + validation_data[:, 1]*0.3048
-    distances_pred = [seed.distance for seed in seeds_preds]
+    distances_pred = seeds_graph.get_distances()
 
 
     distances = np.diff(validation_data)
@@ -32,7 +32,7 @@ def validate(seeds_preds, validation_Data_csv_path, total_dist=50*0.3048):
 
     np.insert(distances, 0, 0, 0)
 
-    seed0 = seeds_preds[0]
+    seed0 = seeds_graph.head_node.seed_distance_info
 
     def dist(seed0, seed1):
         n = seed1.n_c - seed0.n_c
@@ -44,7 +44,7 @@ def validate(seeds_preds, validation_Data_csv_path, total_dist=50*0.3048):
     total_distances = [validation_data[0]]
 
     prev_distance = 0
-    for seed in seeds_preds:
+    for seed in seeds_graph.get_seed_infos():
         distance = dist(seed0.seed, seed.seed)
         if(distance < total_dist):
             seeds_filtered.append(seed)
@@ -146,10 +146,25 @@ def validate(seeds_preds, validation_Data_csv_path, total_dist=50*0.3048):
     plt.legend()
     plt.xlabel("Distance(m)")
 
+    compare_adj_matrices(convert_to_adj_matrix(distances), seeds_graph.make_adj_matrix())
+
     return ret
+
 def convert_to_dataframe(seed_dist_list):
     seeds = [seed_dist.seed for seed_dist in seed_dist_list]
     df = pd.DataFrame(seeds)
     df1 = pd.DataFrame(seed_dist_list)
     df1 = df1.drop('seed', axis=1)
     return df.join(df1)
+
+def convert_to_adj_matrix(distances):
+    ret_mat = np.zeros((len(distances)+1, len(distances)+1))
+    for i in range(len(distances)):
+        ret_mat[i, i+1] = distances[i]
+        ret_mat[i+1, i] = distances[i]
+    return ret_mat
+
+def compare_adj_matrices(ground_truth, predictions):
+    #TODO Write Infinity Norm
+    #print(np.linalg.norm(ground_truth, axis=1) - np.linalg.norm(predictions, axis=1))
+    pass

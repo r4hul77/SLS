@@ -59,7 +59,8 @@ class FlowEstimator:
         for match in matches:
             start_point = [int(c) for c in query_kps[match.queryIdx].pt]
             end_point = [int(c) for c in train_kps[match.trainIdx].pt]
-            cv.arrowedLine(img, start_point, end_point, color, thickness=1)
+            logging.debug('[VIZ DRAW MATCHES] start_point {} end Point {}'.format(start_point, end_point))
+            cv.arrowedLine(img, tuple(start_point), tuple(end_point), color, thickness=1)
         return img
 
     def viz(self, matches):

@@ -4,131 +4,37 @@ from utils_seed.filehandling import LoadFilesWithExtensions
 
 from SeedDistanceEstimator import *
 import sys
-DETR_PATH = "/home/harsha/Desktop/SLS-CNH/ObjectDetectionModels/detr"
-sys.path.insert(0, DETR_PATH)
+ONENET_PATH = "/home/harsha/Desktop/SLS-CNH/ObjectDetectionModels/OneNet/"
+sys.path.insert(0, ONENET_PATH)
+from detectron2.engine.defaults import DefaultPredictor
 import argparse
+from detectron2.config import get_cfg
+from projects.OneNet.onenet import add_onenet_config
 
-from models.detr import build
+
 import torch
 
-class DetrSeedDector(SeedDetector):
+class OneNetSeedDector(SeedDetector):
 
-    def __init__(self, threshold, device = 0, args='', checkpoint=''):
-        super(DetrSeedDector, self).__init__(name="Detr", threshold=threshold, model=None)
+    def __init__(self, cfg, threshold, device = 0, args='', checkpoint=''):
+        super(OneNetSeedDector, self).__init__(name="OneNet", threshold=threshold, model=None)
         self.device = device
-        opts = self.parse(args)
-        self.model, _, _ = build(opts)
-        self.model = self.model.to(self.device)
-        checkpoint= torch.load(checkpoint)
-        self.model.load_state_dict(checkpoint['model'])
-        self.model.eval()
-
-
-    def parse(self, args=''):
-        parser = argparse.ArgumentParser('Set transformer detector', add_help=False)
-        parser.add_argument('--lr', default=1e-4, type=float)
-        parser.add_argument('--lr_backbone', default=1e-5, type=float)
-        parser.add_argument('--batch_size', default=2, type=int)
-        parser.add_argument('--weight_decay', default=1e-4, type=float)
-        parser.add_argument('--epochs', default=300, type=int)
-        parser.add_argument('--lr_drop', default=200, type=int)
-        parser.add_argument('--clip_max_norm', default=0.1, type=float,
-                            help='gradient clipping max norm')
-
-        # Model parameters
-        parser.add_argument('--frozen_weights', type=str, default=None,
-                            help="Path to the pretrained model. If set, only the mask head will be trained")
-
-        parser.add_argument('--num_classes', default=None, type=int,
-                            help='Number of classes')
-
-        # * Backbone
-        parser.add_argument('--backbone', default='resnet50', type=str,
-                            help="Name of the convolutional backbone to use")
-        parser.add_argument('--dilation', action='store_true',
-                            help="If true, we replace stride with dilation in the last convolutional block (DC5)")
-        parser.add_argument('--position_embedding', default='sine', type=str, choices=('sine', 'learned'),
-                            help="Type of positional embedding to use on top of the image features")
-
-        # * Transformer
-        parser.add_argument('--enc_layers', default=6, type=int,
-                            help="Number of encoding layers in the transformer")
-        parser.add_argument('--dec_layers', default=6, type=int,
-                            help="Number of decoding layers in the transformer")
-        parser.add_argument('--dim_feedforward', default=2048, type=int,
-                            help="Intermediate size of the feedforward layers in the transformer blocks")
-        parser.add_argument('--hidden_dim', default=256, type=int,
-                            help="Size of the embeddings (dimension of the transformer)")
-        parser.add_argument('--dropout', default=0.1, type=float,
-                            help="Dropout applied in the transformer")
-        parser.add_argument('--nheads', default=8, type=int,
-                            help="Number of attention heads inside the transformer's attentions")
-        parser.add_argument('--num_queries', default=100, type=int,
-                            help="Number of query slots")
-        parser.add_argument('--pre_norm', action='store_true')
-
-        # * Segmentation
-        parser.add_argument('--masks', action='store_true',
-                            help="Train segmentation head if the flag is provided")
-
-        # Loss
-        parser.add_argument('--no_aux_loss', dest='aux_loss', action='store_false',
-                            help="Disables auxiliary decoding losses (loss at each layer)")
-        # * Matcher
-        parser.add_argument('--set_cost_class', default=1, type=float,
-                            help="Class coefficient in the matching cost")
-        parser.add_argument('--set_cost_bbox', default=5, type=float,
-                            help="L1 box coefficient in the matching cost")
-        parser.add_argument('--set_cost_giou', default=2, type=float,
-                            help="giou box coefficient in the matching cost")
-        # * Loss coefficients
-        parser.add_argument('--mask_loss_coef', default=1, type=float)
-        parser.add_argument('--dice_loss_coef', default=1, type=float)
-        parser.add_argument('--bbox_loss_coef', default=5, type=float)
-        parser.add_argument('--giou_loss_coef', default=2, type=float)
-        parser.add_argument('--eos_coef', default=0.1, type=float,
-                            help="Relative classification weight of the no-object class")
-
-        # dataset parameters
-        parser.add_argument('--dataset_file', default='coco')
-        parser.add_argument('--coco_path', type=str)
-        parser.add_argument('--coco_panoptic_path', type=str)
-        parser.add_argument('--remove_difficult', action='store_true')
-
-        parser.add_argument('--output_dir', default='',
-                            help='path where to save, empty for no saving')
-        parser.add_argument('--device', default='cuda',
-                            help='device to use for training / testing')
-        parser.add_argument('--seed', default=42, type=int)
-        parser.add_argument('--resume', default='', help='resume from checkpoint')
-        parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
-                            help='start epoch')
-        parser.add_argument('--eval', action='store_true')
-        parser.add_argument('--num_workers', default=2, type=int)
-
-        # distributed training parameters
-        parser.add_argument('--world_size', default=1, type=int,
-                            help='number of distributed processes')
-        parser.add_argument('--dist_url', default='env://', help='url used to set up distributed training')
-
-
-        return parser.parse_args(args)
-
+        self.predictor = DefaultPredictor(cfg)
 
 
     def predict(self, input_img:np.array):
-        tensors =  torch.Tensor(input_img[:, :, ::-1] / 255).to(self.device).permute(2, 0, 1)
-        logging.debug("[Detr Detector] Predict tensor shapes {}".format(tensors.size))
-        tensors = tensors.unsqueeze(0)
-        _, _, self.width, self.height = tensors.size()
-        self.model.eval()
+        image = input_img[:, :, ::-1]
+        logging.debug("[OneNet Detector] Predict input shapes {}".format(image.shape))
 
-        with torch.no_grad():
-            outs = self.model(tensors)
+        preds = self.predictor(image)
+
+        logging.debug("[OneNEt Detector] Output {}".format(preds['instances']))
+        #
+        # vals = outs['pred_logits'].softmax(-1)[0, :, :-1]
         ret = {}
-        vals = outs['pred_logits'].softmax(-1)[0, :, :-1]
-        ret['scores'], ret['labels'] = torch.max(vals, dim=1)
-        ret['boxes']  = self.rescale_bboxes(outs['pred_boxes'][0])
+        ret['scores'], ret['labels'] = preds['instances'].scores, preds['instances'].pred_classes
+        ret['boxes']  = preds['instances'].pred_boxes.tensor
+        logging.debug('Ret {}'.format(ret))
         return ret
 
     def box_cxcywh_to_xyxy(self, x):
@@ -178,3 +84,9 @@ class DetrSeedDector(SeedDetector):
         w = (box[2] - box[0])
         h = (box[3] - box[1])
         return x, y, h, w
+
+cfg_path = "/home/harsha/onenet_outputs/output_onenet_r50fcos/config.yaml"
+cfg = get_cfg()
+add_onenet_config(cfg)
+cfg.merge_from_file(cfg_path)
+detector = OneNetSeedDector(cfg=cfg, threshold=0.2)

@@ -11,7 +11,6 @@ from ObjectDetectionModels.yolor.models.models import *
 from ObjectDetectionModels.yolor.utils.general import (
     check_img_size, non_max_suppression, apply_classifier, scale_coords, xyxy2xywh, strip_optimizer)
 from utils_seed.filehandling import *
-from ObjectDetectionModels.yolor.utils.datasets import letterbox
 torch.set_printoptions(profile="full")
 class YoloRSeedDector(SeedDetector):
 
@@ -20,11 +19,11 @@ class YoloRSeedDector(SeedDetector):
         self.device = device
         self.model = Darknet(cfg, img_size).to(device)
         self.model.load_state_dict(torch.load(weights)['model'])
-        self.img_size =img_size
+        self.img_size = img_size
         self.idx = 0
-        self.r = 0 #Resize Factor
-        self.pw = (0, 0) #Padding width left, right
-        self.ph = (0, 0) #Padding height top, bottom
+        self.r = 0        # Resize Factor
+        self.pw = (0, 0)  # Padding width left, right
+        self.ph = (0, 0)  # Padding height top, bottom
 
     def predict(self, input_img:np.array):
         img = self.adjust_size(input_img)
@@ -45,8 +44,8 @@ class YoloRSeedDector(SeedDetector):
             outs = self.model(tensors, augment=False)[0]
             _, indices = torch.sort(outs[:, :, -2], descending=True)
             logging.debug("[Top Outs] {}".format(outs[:, indices[:, :25], :]))
-            #logging.debug("[before NMS yolorDetector] preds : {}".format(outsP))
-            ret = non_max_suppression(outs, 0.5, 0.75, agnostic=True)
+            logging.debug("[before NMS yolorDetector] preds : {}".format(outs.shape))
+            ret = non_max_suppression(outs, 0.1, 0.95, agnostic=True, merge=False)
             logging.debug("[NMS yolorDetector] preds : {}".format(ret))
 
         return self.get_bboxs(preds=ret[0])
@@ -73,7 +72,9 @@ class YoloRSeedDector(SeedDetector):
         return ret
 
     def get_bboxs(self, preds):
-        return preds.to(self.device)*(torch.tensor([1/self.r, 1/self.r, 1/self.r, 1/self.r, 1, 1]).to(self.device)) + torch.tensor([-self.pw[0], -self.ph[0], -self.pw[0], -self.ph[0], 0, 0]).to(self.device)
+        ratio_fixed = preds.to(self.device)*(torch.tensor([self.r, self.r, self.r, self.r, 1, 1]).to(self.device))
+        logging.debug("[RATIO FIXED] Ratio fixed : {}; Predictions : {}".format(ratio_fixed, preds))
+        return  ratio_fixed + torch.tensor([-self.r*self.pw[0], -self.r*self.ph[0], -self.r*self.pw[0], -self.r*self.ph[0], 0, 0]).to(self.device)
 
     def get_max_prob_seeds(self, predictions, n=3):
         scores = torch.tensor([pred[-2].cpu() for pred in predictions if pred.numel()>0])
