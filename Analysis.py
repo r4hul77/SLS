@@ -65,7 +65,7 @@ def analyse(exp, detector, results_path, camera_calib_path="/home/harsha/Desktop
 
     dataset = GoodFieldDataSet(folder=current_dataset_path)
 
-    flow_estimator = FlowEstimator(queue_size=3, debug=True)
+    flow_estimator = FlowEstimator(queue_size=3, debug=False)
 
     with open(os.path.join(current_dataset_path, frames_yaml), "r") as stream:
         frame_info = yaml.safe_load(stream)
@@ -80,7 +80,7 @@ def analyse(exp, detector, results_path, camera_calib_path="/home/harsha/Desktop
     dataset_tqdm = tqdm(dataset, total=dataset.get_total_frames())
 
     frame_transformer = FrameTransformerBase(0)
-    seed_filter = SeedFilter(iou_threshold=0.225)
+    seed_filter = SeedFilter(0.1)
 
     count = 0
     seed_distance = SeedXDistanceEstimator()
@@ -88,6 +88,7 @@ def analyse(exp, detector, results_path, camera_calib_path="/home/harsha/Desktop
     start_time = time.time()
     probs = []
     camera_calib = CameraCalibration(camera_calib_path, h=300, w=480)
+    seeds_graph = Graph()
 
     for frame_idx, img_0, _, _, _, lat, long, vel, accel, heading in dataset_tqdm:
         height, width, _ = img_0.shape
@@ -97,16 +98,22 @@ def analyse(exp, detector, results_path, camera_calib_path="/home/harsha/Desktop
 
         detections, seed_probs = detector.detect(input_img=undistorted, seed_prob_dim=3)
 
-        state, viz = flow_estimator.main(undistorted)
+        state, viz = flow_estimator.main(undistorted), undistorted
 
         logging.debug("[Main] Seed Probs {}".format(seed_probs))
         viz = draw_bbox(viz, detections)
         probs.append(seed_probs)
-        detectionsCamSpace = list(map(lambda x: frame_transformer.convert(x, width=width, height=height), detections))
+        detectionsCamSpace = list(map(lambda x: frame_transformer.convert_to_camspace(x, width=width, height=height), detections))
         logging.debug("[Main] SeedS CamSpace {}".format(detectionsCamSpace))
 
 
         new_seeds = seed_filter.main(detections=detectionsCamSpace, lat=lat, long=long, velocity=vel, acceleration=accel, dt=1/40)
+
+        new_seeds_img_space = list(map(lambda x : frame_transformer.convert_to_img_space(x, width=width, height=height), new_seeds))
+
+        logging.debug("[New Seeds ] {}".format(new_seeds))
+
+        viz = draw_bbox(viz, new_seeds_img_space, color=(0, 255, 0))
         count += len(new_seeds)
         logging.debug("ROOT COUNT {}".format(count))
 
@@ -114,6 +121,8 @@ def analyse(exp, detector, results_path, camera_calib_path="/home/harsha/Desktop
         logging.debug("[Main] Seeds UTM {}".format(seeds_utm_now))
         seeds_utm += seeds_utm_now
 
+        for seed in seeds_utm_now:
+            seeds_graph.insert_node(seed)
 
         cv2.imwrite(detections_folder+"/{}.JPEG".format(frame_idx), viz)
 
@@ -125,18 +134,12 @@ def analyse(exp, detector, results_path, camera_calib_path="/home/harsha/Desktop
 
     df_seeds.to_csv(os.path.join(results_folder, 'results.csv'))
 
-    validation_data = pd.read_csv(os.path.join(current_dataset_path, "ValidationData.csv")).to_numpy()
-    data_feet = validation_data[:, 0]*0.3048 + validation_data[:, 1]*0.3048
-
-    delta_valid = np.diff(data_feet)
-    numpy.insert(delta_valid, 0, 0, axis=0)
+    np.savetxt(os.path.join(results_folder, 'seeds_aj_matrix.csv'), seeds_graph.make_adj_matrix(), delimiter=',')
 
 
-    delta_dists = [seed.distance for seed in seeds_utm]
-
-
-    frame_idxs  = [seed.frame_idx + start_frame for seed in seeds_utm]
-    counts      = [seed.count for seed in seeds_utm]
+    distances = seeds_graph.get_distances()
+    frame_idxs  = seeds_graph.get_frame_idxs(start_frame)
+    counts      = seeds_graph.get_counts()
 
     '''Plots For Vizualization'''
 
@@ -144,7 +147,7 @@ def analyse(exp, detector, results_path, camera_calib_path="/home/harsha/Desktop
     plt.title("Histogram of Seed Distances")
     plt.ylabel("Number of Seeds(N)")
     plt.xlabel("Distance(m)")
-    plt.hist(delta_dists, bins=75)
+    plt.hist(distances, bins=75)
 
 
     plt.figure()
@@ -155,12 +158,12 @@ def analyse(exp, detector, results_path, camera_calib_path="/home/harsha/Desktop
 
     plt.figure()
     plt.title("Counts Vs Distances")
-    plt.scatter(counts, delta_dists, marker='+', norm=10)
+    plt.scatter(counts[1:], distances, marker='+', norm=10)
     plt.xlabel("Counts (N)")
     plt.ylabel("Distances(m)")
 
     plt.figure()
-    plt.scatter(frame_idxs, delta_dists)
+    plt.scatter(frame_idxs[1:], distances)
     plt.title("Frame Indexes and Distances")
     plt.xlabel("Frame IDXS(N)")
     plt.ylabel("Distances (m)")
@@ -175,7 +178,7 @@ def analyse(exp, detector, results_path, camera_calib_path="/home/harsha/Desktop
     plt.ylabel("Prob(0<=p<=1)")
     plt.legend()
 
-    ret_dict = validate(seeds_utm, os.path.join(current_dataset_path, "ValidationData.csv"), total_dist=50*0.3048)
+    ret_dict = validate(seeds_graph, os.path.join(current_dataset_path, "ValidationData.csv"), total_dist=50*0.3048)
 
     with open(os.path.join(results_folder, "validation_results.csv"), 'w') as file:
         for key in ret_dict.keys():
@@ -183,6 +186,6 @@ def analyse(exp, detector, results_path, camera_calib_path="/home/harsha/Desktop
 
     save_multi_image(os.path.join(results_folder, "results.pdf"))
     save_images(os.path.join(results_folder, "Graphs"))
-    logging.warning("Total Mean, Stdev : {}".format((torch.mean(torch.tensor(delta_dists)), torch.std(torch.tensor(delta_dists)))))
+    logging.warning("Total Mean, Stdev : {}".format((torch.mean(torch.tensor(distances)), torch.std(torch.tensor(distances)))))
     logging.warning("Total Time Taken : {}".format(time.time() - start_time))
     print("Done !")

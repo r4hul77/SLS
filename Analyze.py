@@ -12,16 +12,23 @@ def get_parser():
     parser = argparse.ArgumentParser(description="Analyze Seed Spacing")
     parser.add_argument('-d', '--detector_file', help="Seed Detector Location")
     parser.add_argument('-o', '--output_dir', help="Seed Detector Location")
+
     return parser
 
 def get_detector(detector_file):
 
     try:
         sys.path.append(os.path.dirname(detector_file))
+    except Exception:
+        raise ValueError("Can't find the file {}".format(detector_file))
+    try:
         detector_current = importlib.import_module(os.path.basename(detector_file).split(".")[0])
+    except Exception:
+        raise  ImportError("Error Importing {}".format(detector_file))
+    try:
         detector = detector_current.detector
     except Exception:
-        raise ImportError("{} doesn't contains class named 'Exp'".format(detector_file))
+        raise ImportError("{} doesn't contains class named 'detector'".format(detector_file))
     return detector
 
 
@@ -52,5 +59,6 @@ if __name__ == "__main__":
 
 
     for exp in exps:
+
         logging.warning("Running On the DataSet " + exp)
         analyse(exp, detector=detector, results_path=results_path)
